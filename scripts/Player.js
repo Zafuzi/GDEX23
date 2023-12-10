@@ -20,7 +20,6 @@ function loadPlayer() {
 	Player.draw_priority(110);
 
 	const animationFrameRate = 9;
-	console.log(animationFrameRate);
 	let animationFrame = 0;
 	let activeAnimation = walkingRightAnimation;
 	Player.listen("tick", () => {
