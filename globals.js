@@ -40,12 +40,12 @@ const Globals = {
 	});
 
 	Main.listen("draw", () => {
-		draw_text("Tick: " + Globals.tick, 10, 24, Globals.fonts.monospace, "left");
-		draw_text(`Screen: ${Globals.sw}x${Globals.sh}`, 10, 48, Globals.fonts.monospace, "left");
-		draw_text(`Halves: ${Globals.halfWidth}x${Globals.halfHeight}`, 10, 72, Globals.fonts.monospace, "left");
+		debug(1, "Tick: " + Globals.tick, 10, 24, Globals.fonts.monospace, "left");
+		debug(2, `Screen: ${Globals.sw}x${Globals.sh}`, 10, 48, Globals.fonts.monospace, "left");
+		debug(3, `Halves: ${Globals.halfWidth}x${Globals.halfHeight}`, 10, 72, Globals.fonts.monospace, "left");
 	});
 
-	Main.draw_priority(100);
+	Main.draw_priority(1000);
 })();
 
 function ImgSet( base, min_len ) {
