@@ -5,10 +5,10 @@ const {
 } = Squids;
 
 const Globals = {
-	sw: screen.width,
-	sh: screen.height,
-	halfHeight: screen.width / 2,
-	halfWidth: screen.height / 2,
+	sw: window.innerWidth,
+	sh: window.innerHeight,
+	halfHeight: window.innerWidth / 2,
+	halfWidth: window.innerHeight / 2,
 	resolution: {
 		width: 1280,
 		height: 720
@@ -31,6 +31,12 @@ const Globals = {
 
 	Main.listen("tick", () => {
 		Globals.tick++;
+		Globals.sw = window.innerWidth;
+		Globals.sh = window.innerHeight;
+		Globals.halfWidth = Globals.sw / 2;
+		Globals.halfHeight = Globals.sh / 2;
+		Globals.canvas.width = Globals.sw;
+		Globals.canvas.height = Globals.sh;
 	});
 
 	Main.listen("draw", () => {

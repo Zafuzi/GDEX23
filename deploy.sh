@@ -1,7 +1,7 @@
 #!/bin/bash
 
 username=zafuzi
-gameName=giving-a-sh-t
+gameName=giving
 
 echo "removing old 'dist' ..."
 rm -rf dist
@@ -14,4 +14,4 @@ cp ./*.js dist
 cp -rL scripts dist
 cp -rL data dist
 
-# butler push dist $username/$gameName:html5;
+butler push dist $username/$gameName:html5;
