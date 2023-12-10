@@ -47,3 +47,16 @@ const Globals = {
 
 	Main.draw_priority(100);
 })();
+
+function ImgSet( base, min_len ) {
+	let set = [];
+	let len = 0;
+
+	for( len = 0; len < min_len; len++ ) {
+		const img = Globals.assets[ base + len + ".png" ];
+		if( ! img ) { break; }
+		set.push( img );
+	}
+
+	return set;
+}
