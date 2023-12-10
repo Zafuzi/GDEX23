@@ -4,7 +4,7 @@ function loadPlayer() {
 	Player.image = Globals.assets["person-r-0.png"];
 	Player.position = vec(500, Globals.sh - 300);
 	Player.scale = 3;
-	Player.speed = 3;
+	Player.speed = 4;
 
 	let go = vec(Player.position);
 
@@ -19,7 +19,7 @@ function loadPlayer() {
 
 	Player.draw_priority(110);
 
-	const animationFrameRate = 9;
+	const animationFrameRate = 8;
 	let animationFrame = 0;
 	let activeAnimation = walkingRightAnimation;
 	Player.listen("tick", () => {
