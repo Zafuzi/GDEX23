@@ -96,9 +96,10 @@ function loadPlayer() {
 		let pivotX = Player.spriteWidth * 0.5;
 		let pivotY = Player.spriteHeight * 0.5;
 
+		// remove the top pixel row to remove black line
 		let sourceStart = vec(
 			Player.spriteWidth * Player.frame,
-			Player.currentAnimation.row * Player.spriteHeight
+			(Player.currentAnimation.row * Player.spriteHeight) + 1
 		);
 
 		draw_image(Player.image, dx, dy,
