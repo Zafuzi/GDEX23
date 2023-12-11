@@ -37,30 +37,44 @@ function loadPlayer() {
 	Player.speed = 0.8;
 	Player.frame = 0;
 
-	let go = vec(Player.position);
+	Player.go = vec(Player.position);
 
 	Player.listen("tick", () => {
 		const {x,y} = Player.position;
 
-		if (go.x < x) {
+		if (Player.go.x < x) {
 			Player.position.add(-Player.speed, 0);
 		}
 
-		if (go.x > x) {
+		if (Player.go.x > x) {
 			Player.position.add(Player.speed, 0);
 		}
 
-		// limit player left
-		if (x < 300) {
-			Player.position.x = 300;
-			go.x = 300;
+		const activeScene = SceneManager.activeScene;
+		if(activeScene)
+		{
+			const limitLeft = activeScene.limits?.left || 50;
+			const limitRight = Globals.sw - (activeScene.limits?.right || 50);
+
+			// limit player left
+			if (x < limitLeft) {
+				 if(!previousScene()) {
+					 Player.go.x = limitLeft;
+				 }
+			}
+
+			if(x > limitRight) {
+				 if(!nextScene()) {
+					 Player.go.x = limitRight
+				 }
+			}
 		}
 
-		const distanceToIdle = Math.abs(go.x - x);
+		const distanceToIdle = Math.abs(Player.go.x - x);
 		const isWalking = Player.currentAnimation === Player.animations.walkingLeft || Player.currentAnimation === Player.animations.walkingRight;
 
 		if(isWalking && distanceToIdle <= 2) {
-			Player.position.x = go.x;
+			Player.position.x = Player.go.x;
 			Player.currentAnimation = Player.currentAnimation === Player.animations.walkingLeft ? Player.animations.idleLeft : Player.animations.idleRight;
 			Player.frame = 0;
 		}
@@ -76,13 +90,13 @@ function loadPlayer() {
 
 	Player.listen("pointerdown", (x, y) => {
 		// console.log(x, y);
-		go.x = Math.floor(x);
+		Player.go.x = Math.floor(x);
 
-		if (go.x < Player.position.x) {
+		if (Player.go.x < Player.position.x) {
 			Player.currentAnimation = Player.animations.walkingLeft;
 			Player.frame = 0;
 		}
-		if (go.x > Player.position.x) {
+		if (Player.go.x > Player.position.x) {
 			Player.currentAnimation = Player.animations.walkingRight;
 			Player.frame = 0;
 		}
