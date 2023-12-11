@@ -72,6 +72,7 @@ function loadMono() {
 		}
 	})
 
+	Mono.draw_priority(20);
 	Mono.listen("draw", function () {
 		draw_rect_filled(this.position.x, this.position.y, Globals.sw, 50, "black");
 		draw_text(this.line, this.position.x + 20, this.position.y + 25, Globals.fonts.monospace, "left");
