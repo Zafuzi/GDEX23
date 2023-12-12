@@ -1,9 +1,9 @@
 (function() {
 	// debug(true);
 	load_assets("data", [
-		"room1.png",
-		"room2.png",
-		"hallway.png",
+		"background-1.png",
+		"background-2.png",
+		"background-3.png",
 		"person.png",
 	], [], (progress, file, asset) => {
 		Globals.assets[file] = asset;
@@ -16,6 +16,7 @@
 function start() {
 	loadSceneManager();
 	loadBackground();
+	loadLighting();
 	loadPlayer();
 	loadMono();
 
@@ -23,6 +24,6 @@ function start() {
 	addScene("hallway", hallway);
 	addScene("kitchen", kitchen);
 
-	loadScene("bedroom", 0);
+	loadScene("hallway", 0);
 }
 

@@ -28,6 +28,7 @@ const Globals = {
 	Globals.ctx.imageSmoothingEnabled = false;
 
 	const Main = new Squid();
+	Main.draw_priority(1000);
 
 	Main.listen("tick", () => {
 		Globals.tick++;
@@ -44,8 +45,6 @@ const Globals = {
 		debug(2, `Screen: ${Globals.sw}x${Globals.sh}`, 10, 48, Globals.fonts.monospace, "left");
 		debug(3, `Halves: ${Globals.halfWidth}x${Globals.halfHeight}`, 10, 72, Globals.fonts.monospace, "left");
 	});
-
-	Main.draw_priority(1000);
 })();
 
 function ImgSet( base, min_len ) {

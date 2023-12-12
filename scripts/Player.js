@@ -1,4 +1,5 @@
 let Player = new Squid();
+Player.draw_priority(1);
 
 function loadPlayer() {
 	Player.image = Globals.assets["person.png"];
@@ -34,7 +35,7 @@ function loadPlayer() {
 
 	Player.position = vec(500, Globals.sh - 300);
 	Player.scale = 3;
-	Player.speed = 0.8;
+	Player.speed = 5//0.8;
 	Player.frame = 0;
 
 	Player.go = vec(Player.position);
