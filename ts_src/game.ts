@@ -1,9 +1,9 @@
 import {Squids} from "./squids.js";
 
 Squids.load_assets("data", [
-	"room1.png",
-	"room2.png",
-	"hallway.png",
+	"background-1.png",
+	"background-2.png",
+	"background-3.png",
 	"person.png",
 ], [], (progress: number) => {
 	console.log("Loading: " + progress * 100 + "%");
