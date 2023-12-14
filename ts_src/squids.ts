@@ -29,7 +29,7 @@ export namespace Squids {
 	}
 
 	export interface sListener {
-		t: Squid;
+		t: Thing;
 		f: Function;
 	}
 
@@ -40,7 +40,7 @@ export namespace Squids {
 		height: number,
 	}
 
-	export enum SquidEventTypes {
+	export enum sListenerTypes {
 		physics = "physics",
 		tick = "tick",
 		animate = "animate",
@@ -78,19 +78,25 @@ export namespace Squids {
 	//      debug( n, msg )         set debug msg number 'n' to 'msg'
 	//      debug( [ msg, ... ] )   set all debug_messages
 	//	-	-	-	-	-	-	-	-	-	-	-	-	-
-	let debug_flag = false;
+	export let debug_flag = false;
 	let debug_messages = [];
 
-	export function debug(...args: any[]): boolean {
-		if (args.length >= 2) {
-			debug_messages[args[0] | 0] = args[1];
-		} else if (args.length >= 1) {
-			if (args[0] instanceof Array) {
-				debug_messages = args[0];
-			} else {
-				debug_flag = !!args[0];
-			}
+	export function debug(row: number | boolean | string[], content?: string): boolean {
+		if (typeof row === "boolean") {
+			debug_flag = row;
+			return debug_flag;
 		}
+
+		if (typeof row === "number") {
+			debug_messages[row] = content;
+			return debug_flag;
+		}
+
+		if (Array.isArray(row)) {
+			debug_messages = row;
+			return debug_flag;
+		}
+
 		return debug_flag;
 	}
 
@@ -445,12 +451,12 @@ export namespace Squids {
 	// Each attribute in this object is one of the event types
 	// and its corresponding value is another object with
 	// an attribute for each Squid id that is listening for that event.
-	export const listeners: { [key: string]: sListener } = {
-		// tick: {
-		//      "1": { t: squid, f: func },
-		//      ...
-		// }
-		// ...
+	export const listeners = {
+		tick: {},
+		draw: {},
+		animate: {},
+		physics: {},
+		pointerdown: {},
 	};
 
 	// special ordered array of "draw" listeners sorted by priority
@@ -459,7 +465,7 @@ export namespace Squids {
 	// Get listeners for draw event as array and sort them by priority
 	function sort_for_draw() {
 		sorted_draw_listeners = Object.values(listeners["draw"]) || [];
-		sorted_draw_listeners.sort((a, b) => a.t.priority - b.t.priority);
+		sorted_draw_listeners.sort((a, b) => a.t?.priority - b.t?.priority);
 	}
 
 	// Dispatch an event of type 'type' to all things that are listening for it
@@ -483,8 +489,8 @@ export namespace Squids {
 			objs = sorted_draw_listeners;	// use this sorted array instead (see listen())
 		}
 
-		for (let o of objs) {	// walk through listeners ...
-			let sq = o.t;		// get Squid reference
+		for (let o of (objs as sListener[])) {	// walk through listeners ...
+			let sq : Thing = o.t;		// get Squid reference
 
 			if (sq.active) {
 				let fn = o.f;		// get listener func
@@ -510,7 +516,7 @@ export namespace Squids {
 
 	// Destroy all instantiated Squids
 	export function destroy_things() {
-		for (let thing of (Object.values(all_things) as Squid[])) {
+		for (let thing of (Object.values(all_things) as Thing[])) {
 			thing.destroy();
 		}
 		all_things = {};
@@ -535,9 +541,9 @@ export namespace Squids {
 	//	-	-	-	-	-	-	-	-	-	-	-	-	-
 	// Squid
 	//	-	-	-	-	-	-	-	-	-	-	-	-	-
-	export class Squid {
+	export class Thing {
 		public readonly id: number;
-		public active: boolean;
+		public active: boolean = true;
 		public position: Vector;
 		public image?: sImage;
 		public font?: any;
@@ -546,7 +552,7 @@ export namespace Squids {
 		public opacity?: number;
 		public scale?: number;
 		public pivot?: Vector;
-		public priority?: number;
+		public priority: number = 0;
 		public align?: CanvasTextAlign;
 		public body?: sBody;
 		public velocity?: Vector;
@@ -562,29 +568,23 @@ export namespace Squids {
 			this.opacity = opacity;
 			this.scale = scale;
 
-			this.listen(SquidEventTypes.physics, this.default_physics);
-			this.listen(SquidEventTypes.tick, this.default_tick);
-			this.listen(SquidEventTypes.animate, this.default_animate);
-			this.listen(SquidEventTypes.draw, this.default_draw);
+			this.listen(sListenerTypes.physics, this.default_physics);
+			this.listen(sListenerTypes.tick, this.default_tick);
+			this.listen(sListenerTypes.animate, this.default_animate);
+			this.listen(sListenerTypes.draw, this.default_draw);
 		}
 
-		public listen(evt: SquidEventTypes, f: Function): Squid {
+		public listen(evt: sListenerTypes, f: Function): Thing {
 			// get listeners for event type
 			let l = listeners[evt];
-
-			// if hash doesn't yet exist ...
-			if (l === undefined) {
-				// create it
-				l = listeners[evt] = {
-					t: null,
-					f: NOP
-				};
+			if(!l) {
+				throw new Error(`Unknown event type: ${evt}`);
 			}
 
 			// insert wrapped data into hash
-			l["" + this.id] = {t: this, f};
+			l[this.id.toString()] = {t: this, f};
 
-			if (evt === SquidEventTypes.draw) {
+			if (evt === sListenerTypes.draw) {
 				// special case; update priority-sorted list for drawing
 				sort_for_draw();
 			}
@@ -592,14 +592,14 @@ export namespace Squids {
 			return this;
 		}
 
-		public ignore(evt: SquidEventTypes): Squid {
+		public ignore(evt: sListenerTypes): Thing {
 			if (listeners[evt] !== undefined) {
 				delete listeners[evt]["" + this.id];
 			}
 			return this;
 		}
 
-		public ignore_all(): Squid {
+		public ignore_all(): Thing {
 			for (let type in listeners) {
 				delete listeners[type]["" + this.id];
 				if (type === "draw") {
@@ -612,7 +612,7 @@ export namespace Squids {
 			return this;
 		}
 
-		public draw_priority(n: number): Squid | number {
+		public draw_priority(n: number): Thing | number {
 			if (n === undefined) {
 				return this.priority;
 			}
@@ -623,7 +623,7 @@ export namespace Squids {
 			return this;
 		}
 
-		public rotate_to(other: Squid): Squid {
+		public rotate_to(other: Thing): Thing {
 			this.rotation = vector_to_rotation(this.position, other.position);
 			return this;
 		}
@@ -681,7 +681,7 @@ export namespace Squids {
 		}
 
 		// Apply thrust to a squid in the direction that it's facing.
-		public move_forward(amount: Vector): Squid {
+		public move_forward(amount: Vector): Thing {
 			let c = rotation_to_vector(this.rotation);
 
 			if (!this.velocity) {
@@ -693,7 +693,7 @@ export namespace Squids {
 			return this;
 		}
 
-		public default_physics(): Squid {
+		public default_physics(): Thing {
 			const instance = this;
 			if (!instance.active) {
 				return;
@@ -710,9 +710,16 @@ export namespace Squids {
 			return instance;
 		}
 
-		public default_tick = NOP
+		public default_tick() : Thing {
+			const instance = this;
+			if (!instance.active) {
+				return;
+			}
 
-		public default_animate() {
+			return instance;
+		}
+
+		public default_animate() : Thing {
 			const instance = this;
 			if (!instance.active) {
 				return;
@@ -721,9 +728,11 @@ export namespace Squids {
 			if (instance.image) {
 				instance.image = instance.anim.next();
 			}
+
+			return instance;
 		}
 
-		public destroy(): Squid {
+		public destroy(): Thing {
 			this.ignore_all();
 			delete all_things["" + this.id];
 			return this;
@@ -1057,7 +1066,7 @@ export namespace Squids {
 		ts_last = Date.now();
 
 		// Fire up the ticking and drawing
-		setInterval(interval, 1000 / optional_ideal_ticks_per_second || ideal_tps);
+		setInterval(interval, 1000 / (optional_ideal_ticks_per_second || ideal_tps));
 		requestAnimationFrame(frame);
 	}
 }

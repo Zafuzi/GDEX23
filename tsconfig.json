@@ -1,12 +1,14 @@
 {
   "compilerOptions": {
-    "outFile": "./game.js",
-    "module": "system",
+    "outDir": "./src/",
+    "module": "esnext",
     "lib": [
       "decorators",
       "dom",
-      "es2020",
-      "scripthost",
-    ]
+      "esnext",
+    ],
+    "sourceMap": true,
+    "moduleResolution": "Node",
+    "esModuleInterop": true
   }
 }
