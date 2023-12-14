@@ -29,6 +29,8 @@ export namespace Squids {
 	}
 
 	export interface sListener {
+		id: string,
+		type: sListenerTypes,
 		t: Thing;
 		f: Function;
 	}
@@ -40,14 +42,8 @@ export namespace Squids {
 		height: number,
 	}
 
-	export enum sListenerTypes {
-		physics = "physics",
-		tick = "tick",
-		animate = "animate",
-		draw = "draw",
-		pointerdown = "pointerdown",
-	}
-
+	export type sListenerTypes = "tick" | "draw" | "animate" | "physics" | "resize" | "pointerdown" |
+		"pointermove" | "pointerup" | "keyup" | "keydown" | "blur" | "focus";
 
 	export const version = "6.4.0";
 	export const code_name = "Quiver";
@@ -300,10 +296,7 @@ export namespace Squids {
 		}
 
 		// allow loads to fail and return when all promises are rejected or resolved
-		const results = await Promise.all(promises);
-
-		console.log("Loaded assets:", results);
-		return results;
+		return await Promise.all(promises);
 	}
 
 	// Draw a text str at a given pos, in a given font,
@@ -451,12 +444,27 @@ export namespace Squids {
 	// Each attribute in this object is one of the event types
 	// and its corresponding value is another object with
 	// an attribute for each Squid id that is listening for that event.
-	export const listeners = {
-		tick: {},
-		draw: {},
-		animate: {},
-		physics: {},
-		pointerdown: {},
+	type sListenerContainer = {
+		[key : string]: sListener[]
+	}
+	/**
+	 * Key is a sListenerTypes
+	 * Value is an array of sListener
+	 * @type {sListenerContainer}
+	 */
+	export const listeners: sListenerContainer  = {
+		tick: [],
+		draw: [],
+		animate: [],
+		physics: [],
+		pointerdown: [],
+		pointermove: [],
+		pointerup: [],
+		resize: [],
+		keyup: [],
+		keydown: [],
+		blur: [],
+		focus: [],
 	};
 
 	// special ordered array of "draw" listeners sorted by priority
@@ -483,21 +491,21 @@ export namespace Squids {
 			return [];
 		}
 
-		let objs = Object.values(l);
 
-		if (type === "draw") {	// if in the special case of the draw event ...
-			objs = sorted_draw_listeners;	// use this sorted array instead (see listen())
+		if (type === "draw") {
+			// if in the special case of the draw event ...
 		}
 
-		for (let o of (objs as sListener[])) {	// walk through listeners ...
-			let sq : Thing = o.t;		// get Squid reference
+		for(let i = 0; i < l.length; i++) {
+			const listener : sListener = l[i];
+			const fn : Function = listener.f;
 
-			if (sq.active) {
-				let fn = o.f;		// get listener func
-				fn.apply(sq, args);	// call listener func with remaining args
+			if (fn && typeof fn === "function") {
+				fn.apply(listener.t, args);
 			}
 		}
-		return objs;
+
+		return [];
 	}
 
 	function cvt_ptr_event(evt: PointerEvent) {
@@ -543,7 +551,7 @@ export namespace Squids {
 	//	-	-	-	-	-	-	-	-	-	-	-	-	-
 	export class Thing {
 		public readonly id: number;
-		public active: boolean = true;
+		public active: boolean = false;
 		public position: Vector;
 		public image?: sImage;
 		public font?: any;
@@ -551,7 +559,7 @@ export namespace Squids {
 		public rotation?: number;
 		public opacity?: number;
 		public scale?: number;
-		public pivot?: Vector;
+		public pivot: Vector = vec(0, 0);
 		public priority: number = 0;
 		public align?: CanvasTextAlign;
 		public body?: sBody;
@@ -568,10 +576,10 @@ export namespace Squids {
 			this.opacity = opacity;
 			this.scale = scale;
 
-			this.listen(sListenerTypes.physics, this.default_physics);
-			this.listen(sListenerTypes.tick, this.default_tick);
-			this.listen(sListenerTypes.animate, this.default_animate);
-			this.listen(sListenerTypes.draw, this.default_draw);
+			this.listen("physics", this.default_physics);
+			this.listen("tick", this.default_tick);
+			this.listen("animate", this.default_animate);
+			this.listen("draw", this.default_draw);
 		}
 
 		public listen(evt: sListenerTypes, f: Function): Thing {
@@ -581,10 +589,14 @@ export namespace Squids {
 				throw new Error(`Unknown event type: ${evt}`);
 			}
 
-			// insert wrapped data into hash
-			l[this.id.toString()] = {t: this, f};
+			if(!f || typeof f !== "function") {
+				return this;
+			}
 
-			if (evt === sListenerTypes.draw) {
+			// insert wrapped data into hash
+			l.push({type: evt, id: this.id.toString(), t: this, f: f});
+
+			if (evt === "draw") {
 				// special case; update priority-sorted list for drawing
 				sort_for_draw();
 			}
@@ -628,48 +640,10 @@ export namespace Squids {
 			return this;
 		}
 
-		public default_draw() {
-			const instance = this;
-			if (!instance.active) {
-				return;
-			}
-
-			let {scale, opacity, rotation, text, font, align} = instance;
-			let {x, y} = instance.position;
-
-			let img = instance.image;
-			if (img) {
-				let dw = img.w * scale;
-				let dh = img.h * scale;
-				let dx = x - (dw / 2);
-				let dy = y - (dh / 2);
-
-				let pivotX = instance.pivot.x || dw * 0.5;
-				let pivotY = instance.pivot.y || dh * 0.5;
-
-				draw_image(img, dx, dy, opacity, rotation, pivotX, pivotY, scale, scale);
-			}
-
-			if (text) {
-				draw_text(text, x, y, font || dbg_font, align || "center", opacity, /*rotation, scale*/);
-			}
-
-			if (debug_flag) {
-				draw_cross(x, y, 10, "#0ff", 0.8, rotation);
-
-				let sh = instance.get_body();
-
-				if (sh !== null && sh !== undefined) {
-					if (typeof sh === "number") {
-						draw_circle_unfilled(x, y, sh * scale, "#0f0", 0.9);
-					} else {
-						let dx = x - ((sh.x * scale) * 0.5);
-						let dy = y - ((sh.y * scale) * 0.5);
-						draw_rect_unfilled(dx, dy, sh.x * scale, sh.y * scale, "#f00", 0.9);
-					}
-				}
-			}
-		}
+		public default_physics : Function;
+		public default_tick : Function;
+		public default_animate : Function;
+		public default_draw : Function
 
 		public get_body(): sBody {
 			return this.body || {
@@ -693,49 +667,52 @@ export namespace Squids {
 			return this;
 		}
 
-		public default_physics(): Thing {
-			const instance = this;
-			if (!instance.active) {
-				return;
-			}
-
-			let {position, velocity, gravity, velocity_limit} = instance;
-			if (position && velocity) {
-				position.add(velocity);
-				if (typeof velocity_limit !== "number" || velocity.length() <= velocity_limit) {
-					velocity.add(gravity);
-				}
-			}
-
-			return instance;
-		}
-
-		public default_tick() : Thing {
-			const instance = this;
-			if (!instance.active) {
-				return;
-			}
-
-			return instance;
-		}
-
-		public default_animate() : Thing {
-			const instance = this;
-			if (!instance.active) {
-				return;
-			}
-
-			if (instance.image) {
-				instance.image = instance.anim.next();
-			}
-
-			return instance;
-		}
-
 		public destroy(): Thing {
 			this.ignore_all();
 			delete all_things["" + this.id];
 			return this;
+		}
+	}
+
+	export function draw_thing(instance: Thing) {
+		if (!instance.active) {
+			return;
+		}
+
+		let {scale, opacity, rotation, text, font, align} = instance;
+		let {x, y} = instance.position;
+
+		let img = instance.image;
+		if (img) {
+			let dw = img.w * scale;
+			let dh = img.h * scale;
+			let dx = x - (dw / 2);
+			let dy = y - (dh / 2);
+
+			let pivotX = instance.pivot.x || dw * 0.5;
+			let pivotY = instance.pivot.y || dh * 0.5;
+
+			draw_image(img, dx, dy, opacity, rotation, pivotX, pivotY, scale, scale);
+		}
+
+		if (text) {
+			draw_text(text, x, y, font || dbg_font, align || "center", opacity, /*rotation, scale*/);
+		}
+
+		if (debug_flag) {
+			draw_cross(x, y, 10, "#0ff", 0.8, rotation);
+
+			let sh = instance.get_body();
+
+			if (sh !== null && sh !== undefined) {
+				if (typeof sh === "number") {
+					draw_circle_unfilled(x, y, sh * scale, "#0f0", 0.9);
+				} else {
+					let dx = x - ((sh.x * scale) * 0.5);
+					let dy = y - ((sh.y * scale) * 0.5);
+					draw_rect_unfilled(dx, dy, sh.x * scale, sh.y * scale, "#f00", 0.9);
+				}
+			}
 		}
 	}
 
@@ -746,7 +723,6 @@ export namespace Squids {
 	// TODO document this
 
 	export class Anim {
-
 		next() {
 			return undefined;
 		}
@@ -904,10 +880,10 @@ export namespace Squids {
 		}
 	}
 
-	function draw(count: number) {
+	function draw() {
 		// clear canvas
 		draw_rect_filled(0, 0, canvas.width, canvas.height, "#000");
-		emit("draw", count);
+		emit("draw");
 		if (debug_flag) {
 			draw_debug();
 		}
@@ -918,7 +894,7 @@ export namespace Squids {
 		if (splashing) {
 			draw_splash();
 		} else {
-			draw(draw_count);
+			draw();
 		}
 		requestAnimationFrame(frame);
 	}
@@ -997,7 +973,7 @@ export namespace Squids {
 		ctx = canvas.getContext("2d");
 
 		// Install DOM event listeners for the most commonly used events.
-		body.addEventListener("resize", evt => {
+		window.addEventListener("resize", evt => {
 			emit("resize", vec(window.innerWidth, window.innerHeight), evt);
 		});
 

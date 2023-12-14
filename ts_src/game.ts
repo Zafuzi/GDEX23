@@ -1,18 +1,45 @@
 import {Squids} from "./squids.js";
+import {Background} from "./background.js";
+
+Squids.initialize(60);
 
 Squids.load_assets("data", [
 	"background-1.png",
 	"background-2.png",
 	"background-3.png",
 	"person.png",
-], [], (progress: number) => {
-	console.log("Loading: " + progress * 100 + "%");
+], [], (progress: number, file: string, asset: Squids.sImage | HTMLAudioElement) => {
+	// console.log(`Loading ${file}:`, progress * 100 + "%");
+	Game.assets[file] = asset;
+}, console.error).then(x => {
+	console.log("done loading", x);
 
-	if(progress >= 1.0) {
-		 Game.start();
-	}
-}, console.error).then((x) => {
-	Game.start();
+	Squids.debug_flag = true;
+
+	const Main = new Squids.Thing();
+	Main.active = true;
+	Main.draw_priority(1000);
+
+	Main.listen("draw", (sq: Squids.Thing, args: any[]) => {
+		Squids.debug([
+			"FPS: " + Squids.stats.fps,
+			"TPS: " + Squids.stats.tps,
+			"TICK: " + Squids.tick_count
+		]);
+	});
+
+	Main.listen("resize", (dimensions: Squids.Vector) => {
+		Game.sw = dimensions.x;
+		Game.sh = dimensions.y;
+
+		Game.halfWidth = Game.sw / 2;
+		Game.halfHeight = Game.sh / 2;
+
+		Squids.canvas.width = Game.sw;
+		Squids.canvas.height = Game.sh;
+	});
+
+	start();
 }).catch(console.error);
 
 export namespace Game {
@@ -32,20 +59,10 @@ export namespace Game {
 		monospace: Squids.load_font("monospace", 24, "white"),
 	}
 
-	export function start() {
-		Squids.initialize(100);
+	export const assets = {};
+	export const things = {};
+}
 
-		Squids.debug_flag = true;
-
-		const Main = new Squids.Thing();
-		Main.draw_priority(1000);
-
-		Main.listen(Squids.sListenerTypes.draw, (sq: Squids.Thing, args: any[]) => {
-			Squids.debug([
-				"FPS: " + Squids.stats.fps,
-				"TPS: " + Squids.stats.tps,
-				"TICK: " + Squids.tick_count
-			]);
-		});
-	}
+function start() {
+	Game.things["background"] = new Background();
 }

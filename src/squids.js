@@ -46,14 +46,6 @@ export var NOP = function () {
 };
 export var Squids;
 (function (Squids) {
-    var sListenerTypes;
-    (function (sListenerTypes) {
-        sListenerTypes["physics"] = "physics";
-        sListenerTypes["tick"] = "tick";
-        sListenerTypes["animate"] = "animate";
-        sListenerTypes["draw"] = "draw";
-        sListenerTypes["pointerdown"] = "pointerdown";
-    })(sListenerTypes = Squids.sListenerTypes || (Squids.sListenerTypes = {}));
     Squids.version = "6.4.0";
     Squids.code_name = "Quiver";
     //	-	-	-	-	-	-	-	-	-	-	-	-	-
@@ -238,7 +230,7 @@ export var Squids;
     // TODO: Make this take one array of all assets rather separate ones for images & sounds
     function load_assets(base, img_paths, snd_paths, progress, fail) {
         return __awaiter(this, void 0, void 0, function () {
-            var total, done, promises, _loop_1, _i, img_paths_1, path, _loop_2, _a, snd_paths_1, path, results;
+            var total, done, promises, _loop_1, _i, img_paths_1, path, _loop_2, _a, snd_paths_1, path;
             return __generator(this, function (_b) {
                 switch (_b.label) {
                     case 0:
@@ -278,10 +270,9 @@ export var Squids;
                             _loop_2(path);
                         }
                         return [4 /*yield*/, Promise.all(promises)];
-                    case 1:
-                        results = _b.sent();
-                        console.log("Loaded assets:", results);
-                        return [2 /*return*/, results];
+                    case 1: 
+                    // allow loads to fail and return when all promises are rejected or resolved
+                    return [2 /*return*/, _b.sent()];
                 }
             });
         });
@@ -453,19 +444,24 @@ export var Squids;
         Squids.ctx.restore();
     }
     Squids.draw_image = draw_image;
-    //	-	-	-	-	-	-	-	-	-	-	-	-	-
-    // Events
-    //	-	-	-	-	-	-	-	-	-	-	-	-	-
-    // This holds references to the event listeners.
-    // Each attribute in this object is one of the event types
-    // and its corresponding value is another object with
-    // an attribute for each Squid id that is listening for that event.
+    /**
+     * Key is a sListenerTypes
+     * Value is an array of sListener
+     * @type {sListenerContainer}
+     */
     Squids.listeners = {
-        tick: {},
-        draw: {},
-        animate: {},
-        physics: {},
-        pointerdown: {},
+        tick: [],
+        draw: [],
+        animate: [],
+        physics: [],
+        pointerdown: [],
+        pointermove: [],
+        pointerup: [],
+        resize: [],
+        keyup: [],
+        keydown: [],
+        blur: [],
+        focus: [],
     };
     // special ordered array of "draw" listeners sorted by priority
     var sorted_draw_listeners = [];
@@ -490,19 +486,17 @@ export var Squids;
         if (!l) {
             return [];
         }
-        var objs = Object.values(l);
-        if (type === "draw") { // if in the special case of the draw event ...
-            objs = sorted_draw_listeners; // use this sorted array instead (see listen())
+        if (type === "draw") {
+            // if in the special case of the draw event ...
         }
-        for (var _a = 0, _b = objs; _a < _b.length; _a++) { // walk through listeners ...
-            var o = _b[_a];
-            var sq = o.t; // get Squid reference
-            if (sq.active) {
-                var fn = o.f; // get listener func
-                fn.apply(sq, args); // call listener func with remaining args
+        for (var i = 0; i < l.length; i++) {
+            var listener = l[i];
+            var fn = listener.f;
+            if (fn && typeof fn === "function") {
+                fn.apply(listener.t, args);
             }
         }
-        return objs;
+        return [];
     }
     Squids.emit = emit;
     function cvt_ptr_event(evt) {
@@ -548,7 +542,8 @@ export var Squids;
     //	-	-	-	-	-	-	-	-	-	-	-	-	-
     var Thing = /** @class */ (function () {
         function Thing(position, image, rotation, opacity, scale) {
-            this.active = true;
+            this.active = false;
+            this.pivot = vec(0, 0);
             this.priority = 0;
             this.id = seq();
             this.position = position;
@@ -556,10 +551,10 @@ export var Squids;
             this.rotation = rotation;
             this.opacity = opacity;
             this.scale = scale;
-            this.listen(sListenerTypes.physics, this.default_physics);
-            this.listen(sListenerTypes.tick, this.default_tick);
-            this.listen(sListenerTypes.animate, this.default_animate);
-            this.listen(sListenerTypes.draw, this.default_draw);
+            this.listen("physics", this.default_physics);
+            this.listen("tick", this.default_tick);
+            this.listen("animate", this.default_animate);
+            this.listen("draw", this.default_draw);
         }
         Thing.prototype.listen = function (evt, f) {
             // get listeners for event type
@@ -567,9 +562,12 @@ export var Squids;
             if (!l) {
                 throw new Error("Unknown event type: ".concat(evt));
             }
+            if (!f || typeof f !== "function") {
+                return this;
+            }
             // insert wrapped data into hash
-            l[this.id.toString()] = { t: this, f: f };
-            if (evt === sListenerTypes.draw) {
+            l.push({ type: evt, id: this.id.toString(), t: this, f: f });
+            if (evt === "draw") {
                 // special case; update priority-sorted list for drawing
                 sort_for_draw();
             }
@@ -607,41 +605,6 @@ export var Squids;
             this.rotation = vector_to_rotation(this.position, other.position);
             return this;
         };
-        Thing.prototype.default_draw = function () {
-            var instance = this;
-            if (!instance.active) {
-                return;
-            }
-            var scale = instance.scale, opacity = instance.opacity, rotation = instance.rotation, text = instance.text, font = instance.font, align = instance.align;
-            var _a = instance.position, x = _a.x, y = _a.y;
-            var img = instance.image;
-            if (img) {
-                var dw = img.w * scale;
-                var dh = img.h * scale;
-                var dx = x - (dw / 2);
-                var dy = y - (dh / 2);
-                var pivotX = instance.pivot.x || dw * 0.5;
-                var pivotY = instance.pivot.y || dh * 0.5;
-                draw_image(img, dx, dy, opacity, rotation, pivotX, pivotY, scale, scale);
-            }
-            if (text) {
-                draw_text(text, x, y, font || dbg_font, align || "center", opacity);
-            }
-            if (Squids.debug_flag) {
-                draw_cross(x, y, 10, "#0ff", 0.8, rotation);
-                var sh = instance.get_body();
-                if (sh !== null && sh !== undefined) {
-                    if (typeof sh === "number") {
-                        draw_circle_unfilled(x, y, sh * scale, "#0f0", 0.9);
-                    }
-                    else {
-                        var dx = x - ((sh.x * scale) * 0.5);
-                        var dy = y - ((sh.y * scale) * 0.5);
-                        draw_rect_unfilled(dx, dy, sh.x * scale, sh.y * scale, "#f00", 0.9);
-                    }
-                }
-            }
-        };
         Thing.prototype.get_body = function () {
             var _a, _b;
             return this.body || {
@@ -661,37 +624,6 @@ export var Squids;
             this.velocity.add(c);
             return this;
         };
-        Thing.prototype.default_physics = function () {
-            var instance = this;
-            if (!instance.active) {
-                return;
-            }
-            var position = instance.position, velocity = instance.velocity, gravity = instance.gravity, velocity_limit = instance.velocity_limit;
-            if (position && velocity) {
-                position.add(velocity);
-                if (typeof velocity_limit !== "number" || velocity.length() <= velocity_limit) {
-                    velocity.add(gravity);
-                }
-            }
-            return instance;
-        };
-        Thing.prototype.default_tick = function () {
-            var instance = this;
-            if (!instance.active) {
-                return;
-            }
-            return instance;
-        };
-        Thing.prototype.default_animate = function () {
-            var instance = this;
-            if (!instance.active) {
-                return;
-            }
-            if (instance.image) {
-                instance.image = instance.anim.next();
-            }
-            return instance;
-        };
         Thing.prototype.destroy = function () {
             this.ignore_all();
             delete Squids.all_things["" + this.id];
@@ -700,6 +632,41 @@ export var Squids;
         return Thing;
     }());
     Squids.Thing = Thing;
+    function draw_thing(instance) {
+        if (!instance.active) {
+            return;
+        }
+        var scale = instance.scale, opacity = instance.opacity, rotation = instance.rotation, text = instance.text, font = instance.font, align = instance.align;
+        var _a = instance.position, x = _a.x, y = _a.y;
+        var img = instance.image;
+        if (img) {
+            var dw = img.w * scale;
+            var dh = img.h * scale;
+            var dx = x - (dw / 2);
+            var dy = y - (dh / 2);
+            var pivotX = instance.pivot.x || dw * 0.5;
+            var pivotY = instance.pivot.y || dh * 0.5;
+            draw_image(img, dx, dy, opacity, rotation, pivotX, pivotY, scale, scale);
+        }
+        if (text) {
+            draw_text(text, x, y, font || dbg_font, align || "center", opacity);
+        }
+        if (Squids.debug_flag) {
+            draw_cross(x, y, 10, "#0ff", 0.8, rotation);
+            var sh = instance.get_body();
+            if (sh !== null && sh !== undefined) {
+                if (typeof sh === "number") {
+                    draw_circle_unfilled(x, y, sh * scale, "#0f0", 0.9);
+                }
+                else {
+                    var dx = x - ((sh.x * scale) * 0.5);
+                    var dy = y - ((sh.y * scale) * 0.5);
+                    draw_rect_unfilled(dx, dy, sh.x * scale, sh.y * scale, "#f00", 0.9);
+                }
+            }
+        }
+    }
+    Squids.draw_thing = draw_thing;
     //	-	-	-	-	-	-	-	-	-	-	-	-
     // Anim
     //	-	-	-	-	-	-	-	-	-	-	-	-
@@ -855,10 +822,10 @@ export var Squids;
             y += DBG_LINE_HEIGHT;
         }
     }
-    function draw(count) {
+    function draw() {
         // clear canvas
         draw_rect_filled(0, 0, Squids.canvas.width, Squids.canvas.height, "#000");
-        emit("draw", count);
+        emit("draw");
         if (Squids.debug_flag) {
             draw_debug();
         }
@@ -869,7 +836,7 @@ export var Squids;
             draw_splash();
         }
         else {
-            draw(draw_count);
+            draw();
         }
         requestAnimationFrame(frame);
     }
@@ -933,7 +900,7 @@ export var Squids;
         }
         Squids.ctx = Squids.canvas.getContext("2d");
         // Install DOM event listeners for the most commonly used events.
-        body.addEventListener("resize", function (evt) {
+        window.addEventListener("resize", function (evt) {
             emit("resize", vec(window.innerWidth, window.innerHeight), evt);
         });
         body.addEventListener("pointermove", function (evt) {
