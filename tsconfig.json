@@ -1,0 +1,12 @@
+{
+  "compilerOptions": {
+    "outFile": "./game.js",
+    "module": "system",
+    "lib": [
+      "decorators",
+      "dom",
+      "es2020",
+      "scripthost",
+    ]
+  }
+}
