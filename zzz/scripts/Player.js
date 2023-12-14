@@ -1,4 +1,5 @@
 let Player = new Squid();
+Player.draw_priority(1);
 
 function loadPlayer() {
 	Player.image = Globals.assets["person.png"];
@@ -34,7 +35,7 @@ function loadPlayer() {
 
 	Player.position = vec(500, Globals.sh - 300);
 	Player.scale = 3;
-	Player.speed = 0.8;
+	Player.speed = 5//0.8;
 	Player.frame = 0;
 
 	Player.go = vec(Player.position);
@@ -93,12 +94,16 @@ function loadPlayer() {
 		Player.go.x = Math.floor(x);
 
 		if (Player.go.x < Player.position.x) {
-			Player.currentAnimation = Player.animations.walkingLeft;
-			Player.frame = 0;
+			if(Player.currentAnimation !== Player.animations.walkingLeft) {
+				Player.currentAnimation = Player.animations.walkingLeft;
+				Player.frame = 0;
+			}
 		}
 		if (Player.go.x > Player.position.x) {
-			Player.currentAnimation = Player.animations.walkingRight;
-			Player.frame = 0;
+			if(Player.currentAnimation !== Player.animations.walkingRight) {
+				Player.currentAnimation = Player.animations.walkingRight;
+				Player.frame = 0;
+			}
 		}
 	});
 

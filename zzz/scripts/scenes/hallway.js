@@ -11,7 +11,7 @@ const hallway = {
 
 function loadHallway(fromDirection) {
 	console.log("Hallway loaded");
-	Background.image = Globals.assets["hallway.png"];
+	Background.image = Globals.assets["background-2.png"];
 
 	Player.position.x = fromDirection === DIRECTIONS.FROM_RIGHT ? Globals.sw - hallway.limits.right : hallway.limits.left;
 	Player.go = Player.position;
